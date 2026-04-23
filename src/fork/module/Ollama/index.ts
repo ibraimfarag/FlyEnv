@@ -524,6 +524,51 @@ class Ollama extends Base {
     })
   }
 
+  quickGenerate(model: string, prompt: string, baseUrl = 'http://127.0.0.1:11434') {
+    return new ForkPromise(async (resolve) => {
+      const startedAt = Date.now()
+      try {
+        const res = await axios({
+          url: `${baseUrl}/api/generate`,
+          method: 'post',
+          timeout: 120000,
+          data: {
+            model,
+            prompt,
+            stream: false,
+            options: {
+              temperature: 0.2,
+              num_predict: 220
+            }
+          },
+          httpAgent: new http.Agent({ keepAlive: false }),
+          httpsAgent: new https.Agent({ keepAlive: false }),
+          proxy: this.getAxiosProxy()
+        })
+        const data = res?.data ?? {}
+        const evalCount = Number(data?.eval_count || 0)
+        const evalDurationNs = Number(data?.eval_duration || 0)
+        const tokPerSec = evalCount > 0 && evalDurationNs > 0 ? evalCount / (evalDurationNs / 1e9) : 0
+        resolve({
+          ok: true,
+          model,
+          response: `${data?.response || ''}`,
+          tokPerSec: tokPerSec ? Math.round(tokPerSec * 100) / 100 : 0,
+          elapsedSec: Math.round(((Date.now() - startedAt) / 1000) * 100) / 100
+        })
+      } catch (e: any) {
+        resolve({
+          ok: false,
+          model,
+          response: '',
+          tokPerSec: 0,
+          elapsedSec: 0,
+          error: `${e?.message || e}`
+        })
+      }
+    })
+  }
+
   resourceSnapshot() {
     return new ForkPromise(async (resolve) => {
       if (isWindows()) {

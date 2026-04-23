@@ -73,6 +73,50 @@
         <b>{{ performanceTier.maxVramText }}</b> · System RAM: <b>{{ performanceTier.systemRamText }}</b>
       </div>
 
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+        <el-card shadow="never">
+          <template #header>
+            <div class="font-medium text-sm">Auto Quant Recommender</div>
+          </template>
+          <div class="text-xs">
+            <div>Recommended Quant: <b>{{ quantRecommendation.quant }}</b></div>
+            <div class="text-gray-500 mt-1">{{ quantRecommendation.reason }}</div>
+          </div>
+        </el-card>
+
+        <el-card shadow="never" class="md:col-span-2">
+          <template #header>
+            <div class="font-medium text-sm">Context Window Safety</div>
+          </template>
+          <el-table :data="contextSafetyRows" :border="false" size="small">
+            <el-table-column prop="modelClass" label="Model Class" width="120" />
+            <el-table-column prop="safeContext" label="Safe Context" width="130" />
+            <el-table-column prop="riskyContext" label="Risky" width="120" />
+            <el-table-column prop="note" label="Note" min-width="180" />
+          </el-table>
+        </el-card>
+      </div>
+
+      <el-card shadow="never" class="mb-3">
+        <template #header>
+          <div class="flex items-center justify-between">
+            <span class="font-medium text-sm">Model Quality Score</span>
+            <el-button size="small" :loading="state.qualityRunning" @click="runQualityCheck">
+              Run Quality Check
+            </el-button>
+          </div>
+        </template>
+        <el-table v-if="state.qualityRows.length" :data="state.qualityRows" :border="false" size="small">
+          <el-table-column prop="model" label="Model" min-width="220" />
+          <el-table-column prop="coding" label="Coding" width="90" />
+          <el-table-column prop="documents" label="Documents" width="100" />
+          <el-table-column prop="chat" label="Chat" width="80" />
+          <el-table-column prop="vision" label="Vision" width="80" />
+          <el-table-column prop="total" label="Total" width="90" />
+        </el-table>
+        <div v-else class="text-xs text-gray-500">Run quality check to measure practical model quality on this PC.</div>
+      </el-card>
+
       <div class="mb-3 flex flex-wrap gap-2 items-center">
         <el-button size="small" :loading="state.benchmarkRunning" @click="runBenchmark">
           Benchmark Local Models
@@ -351,6 +395,15 @@
       elapsedSec: number
       error?: string
     }>
+    qualityRunning: boolean
+    qualityRows: Array<{
+      model: string
+      coding: number
+      documents: number
+      chat: number
+      vision: number
+      total: number
+    }>
     lastBenchmarkAt: string
     autoBest: string
     monitorAuto: boolean
@@ -376,6 +429,8 @@
     benchmarkRunning: false,
     benchmarkBaseUrl: 'http://127.0.0.1:11434',
     benchmarkRows: [],
+    qualityRunning: false,
+    qualityRows: [],
     lastBenchmarkAt: '',
     autoBest: '',
     monitorAuto: false,
@@ -675,6 +730,58 @@
     }
   })
 
+  const quantRecommendation = computed(() => {
+    const vram = maxGpuVramGB.value
+    const ram = totalSystemRamGB.value
+    if (vram >= 20 || ram >= 64) {
+      return {
+        quant: 'Q6_K / Q8_0',
+        reason: 'High VRAM/RAM profile: prioritize quality with larger quantization.'
+      }
+    }
+    if (vram >= 8 || ram >= 24) {
+      return {
+        quant: 'Q4_K_M / Q5_K_M',
+        reason: 'Balanced profile: best speed/quality trade-off.'
+      }
+    }
+    return {
+      quant: 'Q3_K_M / Q4_K_M',
+      reason: 'Entry profile: lower memory pressure and better stability.'
+    }
+  })
+
+  const contextSafetyRows = computed(() => {
+    const vram = maxGpuVramGB.value
+    const ram = totalSystemRamGB.value
+    const k = (n: number) => `${n}K`
+    const calc = (base: number, risk: number, note: string) => ({
+      safeContext: k(base),
+      riskyContext: k(risk),
+      note
+    })
+
+    if (vram >= 20 || ram >= 64) {
+      return [
+        { modelClass: '7B', ...calc(24, 64, 'Usually stable for long context prompts.') },
+        { modelClass: '14B', ...calc(16, 32, 'Watch VRAM if vision/multimodal is enabled.') },
+        { modelClass: '32B', ...calc(8, 16, 'Prefer higher quant and monitor VRAM.') }
+      ]
+    }
+    if (vram >= 8 || ram >= 24) {
+      return [
+        { modelClass: '7B', ...calc(12, 24, 'Good default for coding and chat.') },
+        { modelClass: '14B', ...calc(8, 16, 'Use Q4/Q5 for stability.') },
+        { modelClass: '32B', ...calc(4, 8, 'May fallback to CPU or slow significantly.') }
+      ]
+    }
+    return [
+      { modelClass: '7B', ...calc(8, 12, 'Prefer compact prompts and chunked RAG.') },
+      { modelClass: '14B', ...calc(4, 8, 'Only with aggressive quantization.') },
+      { modelClass: '32B', ...calc(2, 4, 'Not recommended for daily usage on this profile.') }
+    ]
+  })
+
   const machineHint = computed(() => {
     const ramText = ramInfoText.value
     const hasDDR5 = ramText.toLowerCase().includes('ddr5')
@@ -887,6 +994,7 @@
   }
 
   const BENCH_KEY = 'flyenv-llm-checker-bench'
+  const QUALITY_KEY = 'flyenv-llm-checker-quality'
 
   const loadBenchmarkCache = () => {
     try {
@@ -913,6 +1021,28 @@
           rows: state.benchmarkRows,
           baseUrl: state.benchmarkBaseUrl,
           lastBenchmarkAt: state.lastBenchmarkAt
+        })
+      )
+    } catch {}
+  }
+
+  const loadQualityCache = () => {
+    try {
+      const raw = localStorage.getItem(QUALITY_KEY)
+      if (!raw) return
+      const json = JSON.parse(raw)
+      if (Array.isArray(json?.rows)) {
+        state.qualityRows = json.rows
+      }
+    } catch {}
+  }
+
+  const saveQualityCache = () => {
+    try {
+      localStorage.setItem(
+        QUALITY_KEY,
+        JSON.stringify({
+          rows: state.qualityRows
         })
       )
     } catch {}
@@ -952,6 +1082,74 @@
       autoPickBest()
     } finally {
       state.benchmarkRunning = false
+    }
+  }
+
+  const scoreCoding = (txt: string) => {
+    let score = 40
+    if (/function|class|def|const\s+\w+\s*=\s*\(/i.test(txt)) score += 25
+    if (/test|assert|example/i.test(txt)) score += 20
+    if (txt.length > 180) score += 15
+    return Math.min(score, 100)
+  }
+
+  const scoreDocuments = (txt: string) => {
+    let score = 35
+    if ((txt.match(/\n-/g) || []).length >= 2 || /\d\./.test(txt)) score += 30
+    if (/summary|key|important|point/i.test(txt)) score += 20
+    if (txt.length > 150) score += 15
+    return Math.min(score, 100)
+  }
+
+  const scoreChat = (txt: string) => {
+    let score = 45
+    if (/thanks|sure|help|let's|يمكن|أكيد|تمام/i.test(txt)) score += 25
+    if (txt.length > 120) score += 15
+    if (/\?|\!/.test(txt)) score += 15
+    return Math.min(score, 100)
+  }
+
+  const scoreVision = (txt: string, model: string) => {
+    let score = /vision|llava|vl|moondream|bakllava/i.test(model) ? 65 : 40
+    if (/image|caption|visual|ocr/i.test(txt)) score += 25
+    if (txt.length > 80) score += 10
+    return Math.min(score, 100)
+  }
+
+  const runQualityCheck = async () => {
+    if (state.qualityRunning) return
+    const models = state.localModels.map((m) => m.name).filter(Boolean).slice(0, 6)
+    if (!models.length) return
+
+    const prompts = {
+      coding: 'Write a short function and one test case to validate it.',
+      documents: 'Summarize this idea in bullet points: local model deployment best practices.',
+      chat: 'Reply with a friendly concise answer: how can I start learning AI engineering?',
+      vision: 'In one sentence, explain what makes a good image caption.'
+    }
+
+    state.qualityRunning = true
+    state.qualityRows = []
+    try {
+      for (const model of models) {
+        const [c, d, ch, v] = await Promise.all([
+          callOllama('quickGenerate', model, prompts.coding, state.benchmarkBaseUrl),
+          callOllama('quickGenerate', model, prompts.documents, state.benchmarkBaseUrl),
+          callOllama('quickGenerate', model, prompts.chat, state.benchmarkBaseUrl),
+          callOllama('quickGenerate', model, prompts.vision, state.benchmarkBaseUrl)
+        ])
+
+        const coding = scoreCoding(`${c?.data?.response || ''}`)
+        const documents = scoreDocuments(`${d?.data?.response || ''}`)
+        const chat = scoreChat(`${ch?.data?.response || ''}`)
+        const vision = scoreVision(`${v?.data?.response || ''}`, model)
+        const total = Math.round((coding + documents + chat + vision) / 4)
+        state.qualityRows.push({ model, coding, documents, chat, vision, total })
+      }
+      state.qualityRows.sort((a, b) => b.total - a.total)
+      saveQualityCache()
+    } finally {
+      state.qualityRunning = false
     }
   }
 
@@ -1042,6 +1240,7 @@
 
   onMounted(() => {
     loadBenchmarkCache()
+    loadQualityCache()
     refresh().then().catch()
     refreshMonitor().then().catch()
     autoPickBest()
