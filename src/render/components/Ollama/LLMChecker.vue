@@ -68,46 +68,165 @@
         <div class="font-medium">Model Fit & Suggestions</div>
       </template>
 
-      <el-table :data="categoryRows" :border="false" style="width: 100%" size="small">
+      <div class="mb-3 text-xs text-gray-500">
+        Device performance profile: <b>{{ performanceTier.label }}</b> · GPU VRAM:
+        <b>{{ performanceTier.maxVramText }}</b> · System RAM: <b>{{ performanceTier.systemRamText }}</b>
+      </div>
+
+      <div class="mb-3 flex flex-wrap gap-3 items-center">
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-gray-500">Category</span>
+          <el-select v-model="state.modelCategory" style="width: 220px" size="small">
+            <el-option
+              v-for="item in categoryOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs text-gray-500">Display</span>
+          <el-radio-group v-model="state.modelDisplay" size="small">
+            <el-radio-button value="table">Table</el-radio-button>
+            <el-radio-button value="cards">Cards</el-radio-button>
+          </el-radio-group>
+        </div>
+      </div>
+
+      <div class="mb-3 flex flex-wrap gap-2 items-center">
+        <span class="text-xs text-gray-500">Models Family</span>
+        <el-button
+          size="small"
+          :type="state.modelFamily === 'all' ? 'primary' : 'default'"
+          @click="state.modelFamily = 'all'"
+        >
+          All
+        </el-button>
+        <el-button
+          v-for="family in familyOptions"
+          :key="`family-${family}`"
+          size="small"
+          :type="state.modelFamily === family ? 'primary' : 'default'"
+          @click="state.modelFamily = family"
+        >
+          {{ family }}
+        </el-button>
+      </div>
+
+      <el-table
+        v-if="state.modelDisplay === 'table'"
+        :data="filteredModelRows"
+        :border="false"
+        style="width: 100%"
+        size="small"
+      >
         <el-table-column prop="category" label="Category" width="180" />
-        <el-table-column label="Suggested Models">
+        <el-table-column prop="family" label="Models Family" width="140" />
+        <el-table-column prop="modelName" label="Model" min-width="240" />
+        <el-table-column align="center" label="Available On This PC" width="170">
+          <template #default="scope">
+            <el-tag v-if="scope.row.available" type="success" size="small">Installed</el-tag>
+            <span v-else class="text-xs text-gray-500">No</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="quant" label="Best Quant" width="110" />
+        <el-table-column prop="context" label="Context" width="100" />
+        <el-table-column prop="expectedTokSec" label="Expected tok/s" width="130" />
+        <el-table-column prop="firstToken" label="First Token" width="120" />
+        <el-table-column label="Suggested Features" min-width="220">
           <template #default="scope">
             <div class="flex flex-wrap gap-1.5">
               <el-tag
-                v-for="name in scope.row.suggested"
-                :key="`${scope.row.category}-${name}`"
-                effect="plain"
+                v-for="feat in scope.row.features"
+                :key="`${scope.row.category}-${feat}`"
                 size="small"
-                >{{ name }}</el-tag
+                type="info"
+                effect="plain"
+                >{{ feat }}</el-tag
               >
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="Available On This PC" width="260">
-          <template #default="scope">
+      </el-table>
+
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <el-card
+          v-for="row in filteredCategoryRows"
+          :key="`card-${row.category}`"
+          shadow="never"
+          class="category-card"
+        >
+          <template #header>
+            <div class="flex justify-between items-center">
+              <span class="font-medium">{{ row.category }}</span>
+              <el-tag size="small" effect="plain">{{ row.context }}</el-tag>
+            </div>
+          </template>
+
+          <div class="mb-2 text-xs">
+            <span class="text-gray-500">Expected tok/s:</span>
+            <span class="font-medium"> {{ row.expectedTokSec }}</span>
+          </div>
+          <div class="mb-2 text-xs">
+            <span class="text-gray-500">First token:</span>
+            <span class="font-medium"> {{ row.firstToken }}</span>
+          </div>
+          <div class="mb-2 text-xs">
+            <span class="text-gray-500">Quant:</span>
+            <span class="font-medium"> {{ row.quant }}</span>
+          </div>
+
+          <div class="mb-2">
+            <div class="text-xs text-gray-500 mb-1">Suggested Models</div>
             <div class="flex flex-wrap gap-1.5">
-              <template v-if="scope.row.available.length">
+              <el-tag v-for="name in row.suggested" :key="`s-${row.category}-${name}`" size="small">
+                {{ name }}
+              </el-tag>
+            </div>
+          </div>
+
+          <div class="mb-2">
+            <div class="text-xs text-gray-500 mb-1">Available On This PC</div>
+            <div class="flex flex-wrap gap-1.5">
+              <template v-if="row.available.length">
                 <el-tag
-                  v-for="name in scope.row.available"
-                  :key="`${scope.row.category}-have-${name}`"
-                  type="success"
+                  v-for="name in row.available"
+                  :key="`a-${row.category}-${name}`"
                   size="small"
-                  >{{ name }}</el-tag
+                  type="success"
                 >
+                  {{ name }}
+                </el-tag>
               </template>
               <template v-else>
                 <span class="text-xs text-gray-500">No local match</span>
               </template>
             </div>
-          </template>
-        </el-table-column>
-      </el-table>
+          </div>
+
+          <div>
+            <div class="text-xs text-gray-500 mb-1">Suggested Features</div>
+            <div class="flex flex-wrap gap-1.5">
+              <el-tag
+                v-for="feat in row.features"
+                :key="`f-${row.category}-${feat}`"
+                size="small"
+                effect="plain"
+                type="info"
+              >
+                {{ feat }}
+              </el-tag>
+            </div>
+          </div>
+        </el-card>
+      </div>
     </el-card>
   </div>
 </template>
 
 <script lang="ts" setup>
-  import { computed, onMounted, reactive } from 'vue'
+  import { computed, onMounted, reactive, watch } from 'vue'
   import IPC from '@/util/IPC'
   import { BrewStore } from '@/store/brew'
   import { AppStore } from '@/store/app'
@@ -130,13 +249,19 @@
     catalog: Record<string, CatalogItem[]>
     pcReport: any
     gpuTab: string
+    modelCategory: string
+    modelDisplay: 'table' | 'cards'
+    modelFamily: string
   }>({
     fetching: false,
     error: '',
     localModels: [],
     catalog: {},
     pcReport: {},
-    gpuTab: '0'
+    gpuTab: '0',
+    modelCategory: 'all',
+    modelDisplay: 'table',
+    modelFamily: 'all'
   })
 
   const { tab } = AppModuleSetup('ollama')
@@ -359,6 +484,71 @@
 
   const localModelsCount = computed(() => state.localModels.length)
 
+  const totalSystemRamGB = computed(() => {
+    const mods = toArr(state.pcReport?.memory)
+    const total = mods.reduce((s: number, m: any) => s + Number(m?.Capacity || 0), 0)
+    if (!total) return 0
+    return Math.round((total / 1024 / 1024 / 1024) * 100) / 100
+  })
+
+  const maxGpuVramGB = computed(() => {
+    let max = 0
+    const nvidia = toArr(state.pcReport?.nvidia)
+    nvidia.forEach((row: any) => {
+      const gb = Number(row?.MemoryTotalMiB || 0) / 1024
+      if (gb > max) max = gb
+    })
+    if (max > 0) return Math.round(max * 100) / 100
+
+    const gpus = toArr(state.pcReport?.gpu)
+    gpus.forEach((g: any) => {
+      const gb = Number(g?.AdapterRAM || 0) / 1024 / 1024 / 1024
+      if (gb > max) max = gb
+    })
+    return Math.round(max * 100) / 100
+  })
+
+  const performanceTier = computed(() => {
+    const ram = totalSystemRamGB.value
+    const vram = maxGpuVramGB.value
+    const logical = Number(cpuInfoText.value.logicalProcessors || 0)
+
+    if (vram >= 16 || (ram >= 64 && logical >= 24)) {
+      return {
+        key: 'high',
+        label: 'High',
+        maxVramText: vram ? `${vram} GB` : 'Unknown',
+        systemRamText: ram ? `${ram} GB` : 'Unknown',
+        tok: '35 - 90',
+        firstToken: '0.25 - 0.8s',
+        quant: 'Q6_K / Q8_0',
+        context: '16K - 32K'
+      }
+    }
+    if (vram >= 8 || (ram >= 32 && logical >= 12)) {
+      return {
+        key: 'mid',
+        label: 'Balanced',
+        maxVramText: vram ? `${vram} GB` : 'Unknown',
+        systemRamText: ram ? `${ram} GB` : 'Unknown',
+        tok: '18 - 45',
+        firstToken: '0.5 - 1.4s',
+        quant: 'Q4_K_M / Q5_K_M',
+        context: '8K - 16K'
+      }
+    }
+    return {
+      key: 'low',
+      label: 'Entry',
+      maxVramText: vram ? `${vram} GB` : 'Unknown',
+      systemRamText: ram ? `${ram} GB` : 'Unknown',
+      tok: '6 - 20',
+      firstToken: '1.2 - 3.5s',
+      quant: 'Q4_K_M / Q3_K_M',
+      context: '4K - 8K'
+    }
+  })
+
   const machineHint = computed(() => {
     const ramText = ramInfoText.value
     const hasDDR5 = ramText.toLowerCase().includes('ddr5')
@@ -418,23 +608,55 @@
     })
   }
 
+  const modelFamily = (name: string) => {
+    let base = `${name || ''}`.toLowerCase().trim()
+    if (base.includes('/')) {
+      const arr = base.split('/')
+      base = arr[arr.length - 1]
+    }
+    base = base.split(':')[0]
+    const family = base.split(/[-_]/)[0]
+    return family || base || 'unknown'
+  }
+
   const categoryRows = computed(() => {
+    const tier = performanceTier.value
     const rows = [
       {
         category: 'Coding',
-        suggested: pickByKeywords(['coder', 'code', 'codellama', 'deepseek-coder', 'starcoder'])
+        suggested: pickByKeywords(['coder', 'code', 'codellama', 'deepseek-coder', 'starcoder']),
+        features: ['Fill-in-middle', 'Long context', 'Tool call'],
+        context: tier.context,
+        quant: tier.quant,
+        expectedTokSec: tier.tok,
+        firstToken: tier.firstToken
       },
       {
         category: 'Documents/RAG',
-        suggested: pickByKeywords(['embed', 'bge', 'nomic-embed', 'mxbai', 'e5', 'minilm'])
+        suggested: pickByKeywords(['embed', 'bge', 'nomic-embed', 'mxbai', 'e5', 'minilm']),
+        features: ['Embeddings', 'Rerank', 'Citation style'],
+        context: tier.key === 'low' ? '4K - 8K' : '8K - 32K',
+        quant: tier.key === 'high' ? 'Q8_0' : 'Q4_K_M',
+        expectedTokSec: tier.key === 'high' ? '120 - 600 (embed/s)' : '50 - 250 (embed/s)',
+        firstToken: 'N/A'
       },
       {
         category: 'General Chat',
-        suggested: pickByKeywords(['llama', 'qwen', 'gemma', 'mistral', 'phi'])
+        suggested: pickByKeywords(['llama', 'qwen', 'gemma', 'mistral', 'phi']),
+        features: ['Reasoning', 'JSON mode', 'Multilingual'],
+        context: tier.context,
+        quant: tier.quant,
+        expectedTokSec: tier.tok,
+        firstToken: tier.firstToken
       },
       {
         category: 'Vision',
-        suggested: pickByKeywords(['vision', 'llava', 'moondream', 'bakllava', 'vl'])
+        suggested: pickByKeywords(['vision', 'llava', 'moondream', 'bakllava', 'vl']),
+        features: ['Image input', 'OCR', 'Chart QA'],
+        context: tier.key === 'low' ? '4K - 8K' : '8K - 16K',
+        quant: tier.key === 'high' ? 'Q5_K_M / Q6_K' : 'Q4_K_M',
+        expectedTokSec: tier.key === 'high' ? '12 - 35' : '5 - 18',
+        firstToken: tier.key === 'high' ? '0.6 - 1.8s' : '1.5 - 4.0s'
       }
     ]
     return rows.map((row) => {
@@ -442,10 +664,72 @@
       return {
         category: row.category,
         suggested: fallback,
-        available: row.suggested.filter((name) => hasLocalMatch(name))
+        available: row.suggested.filter((name) => hasLocalMatch(name)),
+        quant: row.quant,
+        context: row.context,
+        expectedTokSec: row.expectedTokSec,
+        firstToken: row.firstToken,
+        features: row.features
       }
     })
   })
+
+  const categoryOptions = computed(() => {
+    const base = [{ label: 'All Categories', value: 'all' }]
+    const items = categoryRows.value.map((row) => ({
+      label: row.category,
+      value: row.category
+    }))
+    return [...base, ...items]
+  })
+
+  const filteredCategoryRows = computed(() => {
+    if (state.modelCategory === 'all') {
+      return categoryRows.value
+    }
+    return categoryRows.value.filter((row) => row.category === state.modelCategory)
+  })
+
+  const categoryFilteredModelRows = computed(() => {
+    const rows: any[] = []
+    filteredCategoryRows.value.forEach((row) => {
+      row.suggested
+        .filter((name: string) => name && name !== 'No catalog match')
+        .forEach((name: string) => {
+          rows.push({
+            category: row.category,
+            family: modelFamily(name),
+            modelName: name,
+            available: hasLocalMatch(name),
+            quant: row.quant,
+            context: row.context,
+            expectedTokSec: row.expectedTokSec,
+            firstToken: row.firstToken,
+            features: row.features
+          })
+        })
+    })
+    return rows
+  })
+
+  const familyOptions = computed(() => {
+    const all = categoryFilteredModelRows.value.map((r) => r.family)
+    return Array.from(new Set(all))
+  })
+
+  const filteredModelRows = computed(() => {
+    if (state.modelFamily === 'all') {
+      return categoryFilteredModelRows.value
+    }
+    return categoryFilteredModelRows.value.filter((row) => row.family === state.modelFamily)
+  })
+
+  watch(
+    () => state.modelCategory,
+    () => {
+      state.modelFamily = 'all'
+    }
+  )
 
   const fetchLocalModels = async () => {
     const brewStore = BrewStore()
