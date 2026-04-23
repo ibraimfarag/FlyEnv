@@ -227,7 +227,18 @@
       >
         <el-table-column prop="category" label="Category" width="180" />
         <el-table-column prop="family" label="Models Family" width="140" />
-        <el-table-column prop="modelName" label="Model" min-width="240" />
+        <el-table-column prop="modelName" label="Model" min-width="240">
+          <template #default="scope">
+            <el-button
+              link
+              type="primary"
+              class="!px-0"
+              @click="goToModelLibrary(scope.row.modelName)"
+            >
+              {{ scope.row.modelName }}
+            </el-button>
+          </template>
+        </el-table-column>
         <el-table-column align="center" label="Available On This PC" width="170">
           <template #default="scope">
             <el-tag v-if="scope.row.available" type="success" size="small">Installed</el-tag>
@@ -271,7 +282,7 @@
 
       <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <el-card
-          v-for="row in filteredCategoryRows"
+          v-for="row in cardRows"
           :key="`card-${row.category}`"
           shadow="never"
           class="category-card"
@@ -313,7 +324,13 @@
           <div class="mb-2">
             <div class="text-xs text-gray-500 mb-1">Suggested Models</div>
             <div class="flex flex-wrap gap-1.5">
-              <el-tag v-for="name in row.suggested" :key="`s-${row.category}-${name}`" size="small">
+              <el-tag
+                v-for="name in row.suggested"
+                :key="`s-${row.category}-${name}`"
+                size="small"
+                class="cursor-pointer"
+                @click="goToModelLibrary(name)"
+              >
                 {{ name }}
               </el-tag>
             </div>
@@ -364,6 +381,8 @@
   import { BrewStore } from '@/store/brew'
   import { AppStore } from '@/store/app'
   import { AppModuleSetup } from '@/core/Module'
+  import { OllamaModelsSetup } from './models/setup'
+  import { OllamaAllModelsSetup } from './models/all/setup'
 
   type LocalModelItem = {
     name: string
@@ -661,6 +680,14 @@
 
   const goToOllamaServiceTab = () => {
     tab.value = 0
+  }
+
+  const goToModelLibrary = (modelName: string) => {
+    const keyword = `${modelName || ''}`.trim()
+    if (!keyword) return
+    tab.value = 2
+    OllamaModelsSetup.tab = 'all'
+    OllamaAllModelsSetup.search = keyword
   }
 
   const localModelsCount = computed(() => state.localModels.length)
@@ -968,6 +995,25 @@
       return categoryFilteredModelRows.value
     }
     return categoryFilteredModelRows.value.filter((row) => row.family === state.modelFamily)
+  })
+
+  const cardRows = computed(() => {
+    return filteredCategoryRows.value
+      .map((row) => {
+        const suggested =
+          state.modelFamily === 'all'
+            ? row.suggested
+            : row.suggested.filter((name: string) => modelFamily(name) === state.modelFamily)
+        const available = row.available.filter((name: string) => suggested.includes(name))
+        const sampleModel = suggested.find((name: string) => name && name !== 'No catalog match') || ''
+        return {
+          ...row,
+          suggested,
+          available,
+          confidence: sampleModel ? confidenceScore(sampleModel) : 'Low'
+        }
+      })
+      .filter((row) => row.suggested.length)
   })
 
   watch(

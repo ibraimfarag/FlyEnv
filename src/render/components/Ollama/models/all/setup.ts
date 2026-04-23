@@ -102,7 +102,7 @@ export const Setup = () => {
     const dict = OllamaAllModelsSetup.list
     const list: OllamaModelItem[] = []
     for (const type in dict) {
-      // const arr = dict[type]
+      const arr = dict[type] || []
       list.push({
         isRoot: true,
         name: type,
@@ -114,7 +114,13 @@ export const Setup = () => {
       return list
     }
     const search = OllamaAllModelsSetup.search.trim().toLowerCase()
-    return list.filter((item) => item.name.includes(search) || search.includes(item.name))
+    return list.filter((item) => {
+      if (item.name.toLowerCase().includes(search) || search.includes(item.name.toLowerCase())) {
+        return true
+      }
+      const children = dict[item.name] || []
+      return children.some((child) => `${child?.name || ''}`.toLowerCase().includes(search))
+    })
   })
 
   const fetchCommand = (row: any) => {
