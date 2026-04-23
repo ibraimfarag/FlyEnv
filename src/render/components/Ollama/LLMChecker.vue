@@ -73,6 +73,63 @@
         <b>{{ performanceTier.maxVramText }}</b> · System RAM: <b>{{ performanceTier.systemRamText }}</b>
       </div>
 
+      <div class="mb-3 flex flex-wrap gap-2 items-center">
+        <el-button size="small" :loading="state.benchmarkRunning" @click="runBenchmark">
+          Benchmark Local Models
+        </el-button>
+        <el-button size="small" @click="autoPickBest">Auto Pick Best</el-button>
+        <el-input
+          v-model="state.benchmarkBaseUrl"
+          size="small"
+          style="width: 280px"
+          placeholder="Ollama URL"
+        />
+      </div>
+
+      <el-table
+        v-if="state.benchmarkRows.length"
+        :data="state.benchmarkRows"
+        :border="false"
+        size="small"
+        class="mb-3"
+      >
+        <el-table-column prop="model" label="Model" min-width="220" />
+        <el-table-column prop="tokPerSec" label="Real tok/s" width="120" />
+        <el-table-column prop="firstTokenSec" label="First token (s)" width="130" />
+        <el-table-column prop="elapsedSec" label="Elapsed (s)" width="110" />
+        <el-table-column label="Status" width="110">
+          <template #default="scope">
+            <el-tag v-if="scope.row.ok" type="success" size="small">OK</el-tag>
+            <el-tag v-else type="danger" size="small">Fail</el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <el-card shadow="never" class="mb-3">
+        <template #header>
+          <div class="flex items-center justify-between">
+            <span>Live Resource Monitor</span>
+            <div class="flex items-center gap-2">
+              <el-switch v-model="state.monitorAuto" />
+              <el-button size="small" :loading="state.monitorLoading" @click="refreshMonitor"
+                >Refresh</el-button
+              >
+            </div>
+          </div>
+        </template>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+          <div>CPU: <b>{{ state.monitor.cpu }}%</b></div>
+          <div>RAM Used: <b>{{ state.monitor.ramUsedGB }} GB</b></div>
+          <div>RAM Free: <b>{{ state.monitor.ramFreeGB }} GB</b></div>
+          <div>GPU Util: <b>{{ state.monitor.gpuUtil }}</b></div>
+          <div>GPU Mem: <b>{{ state.monitor.gpuMem }}</b></div>
+          <div>GPU Temp: <b>{{ state.monitor.gpuTemp }}</b></div>
+        </div>
+        <div v-if="state.autoBest" class="mt-2 text-xs text-gray-500">
+          Auto best model for current filters: <b>{{ state.autoBest }}</b>
+        </div>
+      </el-card>
+
       <div class="mb-3 flex flex-wrap gap-3 items-center">
         <div class="flex items-center gap-2">
           <span class="text-xs text-gray-500">Category</span>
@@ -226,7 +283,7 @@
 </template>
 
 <script lang="ts" setup>
-  import { computed, onMounted, reactive, watch } from 'vue'
+  import { computed, onMounted, onUnmounted, reactive, watch } from 'vue'
   import IPC from '@/util/IPC'
   import { BrewStore } from '@/store/brew'
   import { AppStore } from '@/store/app'
@@ -252,6 +309,27 @@
     modelCategory: string
     modelDisplay: 'table' | 'cards'
     modelFamily: string
+    benchmarkRunning: boolean
+    benchmarkBaseUrl: string
+    benchmarkRows: Array<{
+      model: string
+      ok: boolean
+      tokPerSec: number
+      firstTokenSec: number
+      elapsedSec: number
+      error?: string
+    }>
+    autoBest: string
+    monitorAuto: boolean
+    monitorLoading: boolean
+    monitor: {
+      cpu: number
+      ramUsedGB: number
+      ramFreeGB: number
+      gpuUtil: string
+      gpuMem: string
+      gpuTemp: string
+    }
   }>({
     fetching: false,
     error: '',
@@ -261,7 +339,21 @@
     gpuTab: '0',
     modelCategory: 'all',
     modelDisplay: 'table',
-    modelFamily: 'all'
+    modelFamily: 'all',
+    benchmarkRunning: false,
+    benchmarkBaseUrl: 'http://127.0.0.1:11434',
+    benchmarkRows: [],
+    autoBest: '',
+    monitorAuto: false,
+    monitorLoading: false,
+    monitor: {
+      cpu: 0,
+      ramUsedGB: 0,
+      ramFreeGB: 0,
+      gpuUtil: 'N/A',
+      gpuMem: 'N/A',
+      gpuTemp: 'N/A'
+    }
   })
 
   const { tab } = AppModuleSetup('ollama')
@@ -731,6 +823,87 @@
     }
   )
 
+  const modelScore = (row: any) => {
+    const hasBench = state.benchmarkRows.find((b) => b.model === row.modelName && b.ok)
+    if (hasBench) {
+      return hasBench.tokPerSec * 2 - hasBench.firstTokenSec
+    }
+    const tok = `${row.expectedTokSec || ''}`.split('-')[0]?.replace(/[^0-9.]/g, '')
+    return Number(tok || 0)
+  }
+
+  const autoPickBest = () => {
+    if (!filteredModelRows.value.length) {
+      state.autoBest = ''
+      return
+    }
+    const sorted = [...filteredModelRows.value].sort((a, b) => modelScore(b) - modelScore(a))
+    state.autoBest = sorted[0]?.modelName || ''
+  }
+
+  const runBenchmark = async () => {
+    if (state.benchmarkRunning) return
+    const local = state.localModels.map((m) => m.name).filter(Boolean)
+    if (!local.length) return
+
+    state.benchmarkRunning = true
+    state.benchmarkRows = []
+    try {
+      for (const model of local) {
+        const res = await callOllama('benchmarkModel', model, state.benchmarkBaseUrl)
+        const row = res?.data || {}
+        state.benchmarkRows.push({
+          model,
+          ok: !!row?.ok,
+          tokPerSec: Number(row?.tokPerSec || 0),
+          firstTokenSec: Number(row?.firstTokenSec || 0),
+          elapsedSec: Number(row?.elapsedSec || 0),
+          error: row?.error
+        })
+      }
+      autoPickBest()
+    } finally {
+      state.benchmarkRunning = false
+    }
+  }
+
+  const refreshMonitor = async () => {
+    state.monitorLoading = true
+    try {
+      const res = await callOllama('resourceSnapshot')
+      const data = res?.data || {}
+      const gpu = Array.isArray(data?.gpu) && data.gpu.length ? data.gpu[0] : undefined
+      state.monitor.cpu = Number(data?.cpu || 0)
+      state.monitor.ramUsedGB = Number(data?.ram?.usedGB || 0)
+      state.monitor.ramFreeGB = Number(data?.ram?.freeGB || 0)
+      state.monitor.gpuUtil = gpu ? `${gpu?.Utilization ?? 0}%` : 'N/A'
+      state.monitor.gpuMem =
+        gpu && gpu?.MemoryTotalMiB
+          ? `${Math.round((Number(gpu.MemoryUsedMiB || 0) / 1024) * 100) / 100}/${Math.round((Number(gpu.MemoryTotalMiB || 0) / 1024) * 100) / 100} GB`
+          : 'N/A'
+      state.monitor.gpuTemp = gpu && gpu?.TemperatureC ? `${gpu.TemperatureC} C` : 'N/A'
+    } finally {
+      state.monitorLoading = false
+    }
+  }
+
+  let monitorTimer: ReturnType<typeof setInterval> | undefined
+  watch(
+    () => state.monitorAuto,
+    (on) => {
+      if (monitorTimer) {
+        clearInterval(monitorTimer)
+        monitorTimer = undefined
+      }
+      if (on) {
+        refreshMonitor().then().catch()
+        monitorTimer = setInterval(() => {
+          refreshMonitor().then().catch()
+        }, 5000)
+      }
+    }
+  )
+
   const fetchLocalModels = async () => {
     const brewStore = BrewStore()
     const appStore = AppStore()
@@ -771,8 +944,24 @@
     }
   }
 
+  watch(
+    () => filteredModelRows.value,
+    () => {
+      autoPickBest()
+    },
+    { deep: true }
+  )
+
   onMounted(() => {
     refresh().then().catch()
+    refreshMonitor().then().catch()
+  })
+
+  onUnmounted(() => {
+    if (monitorTimer) {
+      clearInterval(monitorTimer)
+      monitorTimer = undefined
+    }
   })
 </script>
 
