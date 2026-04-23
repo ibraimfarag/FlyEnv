@@ -28,45 +28,92 @@
       <template #header>
         <div class="font-medium">PC Report Summary</div>
       </template>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-6 text-sm">
-        <div v-for="item in summaryItems" :key="item.key" class="summary-row">
-          <span class="summary-key">{{ item.key }}:</span>
-          <span class="summary-value">{{ item.value }}</span>
+      <template v-if="state.pcReportLoading">
+        <div class="pc-report-loading">
+          <div class="pc-report-loading-title">Fetching PC hardware details...</div>
+          <div class="pc-report-skeleton-grid">
+            <el-skeleton v-for="i in 8" :key="`pc-row-${i}`" animated>
+              <template #template>
+                <el-skeleton-item variant="text" style="width: 92%; height: 14px" />
+              </template>
+            </el-skeleton>
+          </div>
+          <el-divider class="!my-4" />
+          <div class="text-sm font-medium mb-2">Graphics Cards</div>
+          <el-skeleton animated>
+            <template #template>
+              <el-skeleton-item variant="text" style="width: 75%; height: 14px" />
+              <el-skeleton-item variant="text" style="width: 100%; height: 14px; margin-top: 10px" />
+              <el-skeleton-item variant="text" style="width: 100%; height: 14px; margin-top: 8px" />
+              <el-skeleton-item variant="text" style="width: 100%; height: 14px; margin-top: 8px" />
+            </template>
+          </el-skeleton>
         </div>
-      </div>
-      <div class="mt-3 text-xs text-gray-500">
-        {{ machineHint }}
-      </div>
+      </template>
+      <template v-else>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-6 text-sm">
+          <div v-for="item in summaryItems" :key="item.key" class="summary-row">
+            <span class="summary-key">{{ item.key }}:</span>
+            <span class="summary-value">{{ item.value }}</span>
+          </div>
+        </div>
+        <div class="mt-3 text-xs text-gray-500">
+          {{ machineHint }}
+        </div>
 
-      <el-divider class="!my-4" />
+        <el-divider class="!my-4" />
 
-      <div class="text-sm font-medium mb-2">Graphics Cards</div>
-      <el-tabs v-model="state.gpuTab" type="card" class="gpu-tabs">
-        <el-tab-pane
-          v-for="(item, idx) in gpuRows"
-          :key="`${idx}-${item.cardName}`"
-          :name="`${idx}`"
-          :label="`GPU ${idx + 1}: ${item.cardName}`"
-        >
-          <el-table :data="[item]" :border="false" size="small" style="width: 100%">
-            <el-table-column prop="vendor" label="Card Name" min-width="140" />
-            <el-table-column prop="model" label="Model" min-width="180" />
-            <el-table-column prop="vram" label="RAM" width="140" />
-            <el-table-column prop="driverVersion" label="Driver" min-width="120" />
-            <el-table-column prop="resolution" label="Resolution" width="130" />
-            <el-table-column prop="processor" label="Video Processor" min-width="180" />
-          </el-table>
-        </el-tab-pane>
-        <el-tab-pane v-if="!gpuRows.length" name="empty" label="GPU 1: Unknown">
-          <div class="text-xs text-gray-500 py-2">No graphics card information found.</div>
-        </el-tab-pane>
-      </el-tabs>
+        <div class="text-sm font-medium mb-2">Graphics Cards</div>
+        <el-tabs v-model="state.gpuTab" type="card" class="gpu-tabs">
+          <el-tab-pane
+            v-for="(item, idx) in gpuRows"
+            :key="`${idx}-${item.cardName}`"
+            :name="`${idx}`"
+            :label="`GPU ${idx + 1}: ${item.cardName}`"
+          >
+            <el-table :data="[item]" :border="false" size="small" style="width: 100%">
+              <el-table-column prop="vendor" label="Card Name" min-width="140" />
+              <el-table-column prop="model" label="Model" min-width="180" />
+              <el-table-column prop="vram" label="RAM" width="140" />
+              <el-table-column prop="driverVersion" label="Driver" min-width="120" />
+              <el-table-column prop="resolution" label="Resolution" width="130" />
+              <el-table-column prop="processor" label="Video Processor" min-width="180" />
+            </el-table>
+          </el-tab-pane>
+          <el-tab-pane v-if="!gpuRows.length" name="empty" label="GPU 1: Unknown">
+            <div class="text-xs text-gray-500 py-2">No graphics card information found.</div>
+          </el-tab-pane>
+        </el-tabs>
+      </template>
     </el-card>
 
     <el-card shadow="never">
       <template #header>
         <div class="font-medium">Model Fit & Suggestions</div>
       </template>
+
+      <template v-if="state.fetching">
+        <div class="pc-report-loading">
+          <div class="pc-report-loading-title">Preparing model fit analysis...</div>
+          <div class="model-fit-skeleton-grid mb-3">
+            <el-skeleton v-for="i in 6" :key="`fit-row-${i}`" animated>
+              <template #template>
+                <el-skeleton-item variant="text" style="width: 100%; height: 14px" />
+              </template>
+            </el-skeleton>
+          </div>
+          <el-skeleton animated>
+            <template #template>
+              <el-skeleton-item variant="text" style="width: 55%; height: 14px" />
+              <el-skeleton-item variant="text" style="width: 100%; height: 14px; margin-top: 10px" />
+              <el-skeleton-item variant="text" style="width: 100%; height: 14px; margin-top: 8px" />
+              <el-skeleton-item variant="text" style="width: 100%; height: 14px; margin-top: 8px" />
+              <el-skeleton-item variant="text" style="width: 100%; height: 14px; margin-top: 8px" />
+            </template>
+          </el-skeleton>
+        </div>
+      </template>
+      <template v-else>
 
       <div class="mb-3 text-xs text-gray-500">
         Device performance profile: <b>{{ performanceTier.label }}</b> · GPU VRAM:
@@ -196,9 +243,23 @@
             <el-radio-button value="cards">Cards</el-radio-button>
           </el-radio-group>
         </div>
+        <el-button size="small" type="primary" :loading="state.fitChecking" @click="checkModelFit">
+          Quick PC Benchmark
+        </el-button>
       </div>
 
-      <div class="mb-3 flex flex-wrap gap-2 items-center">
+      <div class="mb-3" v-if="state.fitChecking || state.fitChecked">
+        <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
+          <span>Quick benchmark progress</span>
+          <span>{{ state.fitDone }}/{{ state.fitTotal }} ({{ state.fitProgress }}%)</span>
+        </div>
+        <el-progress :percentage="state.fitProgress" :stroke-width="8" />
+        <div class="text-xs text-gray-500 mt-1">
+          This quick benchmark is different from the top benchmark: it uses PC hardware fit analysis for local and non-local suggested models, and reuses cached real benchmark data when available.
+        </div>
+      </div>
+
+      <div v-if="showFamilyFilters" class="mb-3 flex flex-wrap gap-2 items-center">
         <span class="text-xs text-gray-500">Models Family</span>
         <el-button
           size="small"
@@ -220,14 +281,18 @@
 
       <el-table
         v-if="state.modelDisplay === 'table'"
-        :data="filteredModelRows"
+        :data="displayedModelRows"
         :border="false"
         style="width: 100%"
         size="small"
+        class="compact-fit-table"
       >
-        <el-table-column prop="category" label="Category" width="180" />
-        <el-table-column prop="family" label="Models Family" width="140" />
-        <el-table-column prop="modelName" label="Model" min-width="240">
+        <template #empty>
+          <span class="text-xs text-gray-500">Table is empty. Click "Quick PC Benchmark" to run compatibility analysis for your PC.</span>
+        </template>
+        <el-table-column prop="category" label="Category" width="120" />
+        <el-table-column prop="family" label="Models Family" width="110" />
+        <el-table-column prop="modelName" label="Model" min-width="180">
           <template #default="scope">
             <el-button
               link
@@ -239,15 +304,15 @@
             </el-button>
           </template>
         </el-table-column>
-        <el-table-column align="center" label="Available On This PC" width="170">
+        <el-table-column align="center" label="Available" width="90">
           <template #default="scope">
             <el-tag v-if="scope.row.available" type="success" size="small">Installed</el-tag>
             <span v-else class="text-xs text-gray-500">No</span>
           </template>
         </el-table-column>
-        <el-table-column prop="quant" label="Best Quant" width="110" />
-        <el-table-column prop="context" label="Context" width="100" />
-        <el-table-column prop="confidence" label="Confidence" width="110">
+        <el-table-column prop="quant" label="Quant" width="90" />
+        <el-table-column prop="context" label="Context" width="90" />
+        <el-table-column prop="confidence" label="Conf" width="85">
           <template #default="scope">
             <el-tag
               size="small"
@@ -262,9 +327,26 @@
             >
           </template>
         </el-table-column>
-        <el-table-column prop="expectedTokSec" label="Expected tok/s" width="130" />
-        <el-table-column prop="firstToken" label="First Token" width="120" />
-        <el-table-column label="Suggested Features" min-width="220">
+        <el-table-column prop="expectedTokSec" label="tok/s" width="90" />
+        <el-table-column prop="firstToken" label="1st Token" width="95" />
+        <el-table-column prop="fitLevel" label="Fit" width="85">
+          <template #default="scope">
+            <el-tag
+              size="small"
+              :type="
+                scope.row.fitLevel === 'Excellent'
+                  ? 'success'
+                  : scope.row.fitLevel === 'Medium'
+                    ? 'warning'
+                    : 'info'
+              "
+            >
+              {{ scope.row.fitLevel }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="fitReason" label="Explanation" min-width="170" />
+        <el-table-column label="Features" min-width="140">
           <template #default="scope">
             <div class="flex flex-wrap gap-1.5">
               <el-tag
@@ -371,6 +453,7 @@
           </div>
         </el-card>
       </div>
+      </template>
     </el-card>
   </div>
 </template>
@@ -400,10 +483,17 @@
     localModels: LocalModelItem[]
     catalog: Record<string, CatalogItem[]>
     pcReport: any
+    pcReportLoading: boolean
     gpuTab: string
     modelCategory: string
     modelDisplay: 'table' | 'cards'
     modelFamily: string
+    fitChecking: boolean
+    fitChecked: boolean
+    fitProgress: number
+    fitTotal: number
+    fitDone: number
+    fitMap: Record<string, { level: 'Excellent' | 'Medium' | 'Low'; reason: string }>
     benchmarkRunning: boolean
     benchmarkBaseUrl: string
     benchmarkRows: Array<{
@@ -441,10 +531,17 @@
     localModels: [],
     catalog: {},
     pcReport: {},
+    pcReportLoading: true,
     gpuTab: '0',
     modelCategory: 'all',
     modelDisplay: 'table',
     modelFamily: 'all',
+    fitChecking: false,
+    fitChecked: false,
+    fitProgress: 0,
+    fitTotal: 0,
+    fitDone: 0,
+    fitMap: {},
     benchmarkRunning: false,
     benchmarkBaseUrl: 'http://127.0.0.1:11434',
     benchmarkRows: [],
@@ -852,12 +949,93 @@
 
   const normalize = (name: string) => name.toLowerCase()
 
+  const parseSizeToGB = (sizeText?: string) => {
+    const text = `${sizeText || ''}`.trim().toUpperCase()
+    if (!text) return 0
+    const m = text.match(/(\d+(?:\.\d+)?)\s*(KB|MB|GB|TB)/)
+    if (!m) return 0
+    const value = Number(m[1] || 0)
+    const unit = m[2]
+    if (!value) return 0
+    if (unit === 'TB') return value * 1024
+    if (unit === 'GB') return value
+    if (unit === 'MB') return value / 1024
+    if (unit === 'KB') return value / 1024 / 1024
+    return 0
+  }
+
+  const catalogSizeGBMap = computed(() => {
+    const map: Record<string, number> = {}
+    Object.values(state.catalog).forEach((arr) => {
+      arr.forEach((item) => {
+        const key = normalize(`${item?.name || ''}`)
+        if (!key) return
+        const sizeGB = parseSizeToGB(item?.size)
+        if (sizeGB > 0) {
+          map[key] = sizeGB
+        }
+      })
+    })
+    return map
+  })
+
+  const inferQuantFromModelName = (name: string) => {
+    const n = `${name || ''}`.toUpperCase()
+    if (n.includes('Q8')) return 'Q8'
+    if (n.includes('Q6')) return 'Q6'
+    if (n.includes('Q5')) return 'Q5'
+    if (n.includes('Q4')) return 'Q4'
+    if (n.includes('Q3')) return 'Q3'
+    return 'Q4'
+  }
+
+  const quantFactorByName = (q: string) => {
+    if (q === 'Q8') return 1
+    if (q === 'Q6') return 0.8
+    if (q === 'Q5') return 0.7
+    if (q === 'Q4') return 0.55
+    if (q === 'Q3') return 0.45
+    return 0.65
+  }
+
+  const modelSizeFromName = (name: string) => {
+    const m = `${name || ''}`.match(/(\d+(?:\.\d+)?)\s*b/i)
+    return Number(m?.[1] || 0)
+  }
+
+  const estimateNeedVramFromName = (name: string) => {
+    const sizeB = modelSizeFromName(name)
+    if (!sizeB) return 0
+    const q = inferQuantFromModelName(name)
+    let need = sizeB * 1.15 * quantFactorByName(q) + 1.3
+    if (/vision|vl|llava|moondream|bakllava/i.test(name)) {
+      need += 1.5
+    }
+    return Math.round(need * 100) / 100
+  }
+
+  const modelFitsCurrentGpuBudget = (name: string) => {
+    const vram = maxGpuVramGB.value
+    if (!vram) return true
+
+    const sizeGB = catalogSizeGBMap.value[normalize(name)] || 0
+    if (sizeGB > 0) {
+      // For GPU-optimized suggestions, require model artifact size to be within GPU VRAM budget.
+      return sizeGB <= vram
+    }
+
+    const need = estimateNeedVramFromName(name)
+    if (!need) return false
+    return need <= vram * 1.1
+  }
+
   const pickByKeywords = (keywords: string[]) => {
     const result = allCatalogNames.value.filter((name) => {
       const n = normalize(name)
       return keywords.some((k) => n.includes(k))
     })
-    return result.slice(0, 5)
+    const fitted = result.filter((name) => modelFitsCurrentGpuBudget(name))
+    return fitted.slice(0, 5)
   }
 
   const hasLocalMatch = (target: string) => {
@@ -985,7 +1163,37 @@
     return rows
   })
 
+  const allCategoryModelRows = computed(() => {
+    const rows: any[] = []
+    categoryRows.value.forEach((row) => {
+      row.suggested
+        .filter((name: string) => name && name !== 'No catalog match')
+        .forEach((name: string) => {
+          rows.push({
+            category: row.category,
+            family: modelFamily(name),
+            modelName: name,
+            available: hasLocalMatch(name),
+            confidence: confidenceScore(name),
+            quant: row.quant,
+            context: row.context,
+            expectedTokSec: row.expectedTokSec,
+            firstToken: row.firstToken,
+            features: row.features
+          })
+        })
+    })
+    return rows
+  })
+
+  const showFamilyFilters = computed(() => {
+    return state.fitChecked && categoryFilteredModelRows.value.length > 0
+  })
+
   const familyOptions = computed(() => {
+    if (!showFamilyFilters.value) {
+      return []
+    }
     const all = categoryFilteredModelRows.value.map((r) => r.family)
     return Array.from(new Set(all))
   })
@@ -995,6 +1203,23 @@
       return categoryFilteredModelRows.value
     }
     return categoryFilteredModelRows.value.filter((row) => row.family === state.modelFamily)
+  })
+
+  const displayedModelRows = computed(() => {
+    if (!state.fitChecked) {
+      return []
+    }
+    return filteredModelRows.value.map((row) => {
+      const fit = state.fitMap[row.modelName] || {
+        level: 'Low' as const,
+        reason: 'No benchmark evidence for this model yet on this machine.'
+      }
+      return {
+        ...row,
+        fitLevel: fit.level,
+        fitReason: fit.reason
+      }
+    })
   })
 
   const cardRows = computed(() => {
@@ -1024,6 +1249,15 @@
   )
 
   watch(
+    () => showFamilyFilters.value,
+    (visible) => {
+      if (!visible) {
+        state.modelFamily = 'all'
+      }
+    }
+  )
+
+  watch(
     () => state.benchmarkBaseUrl,
     () => {
       saveBenchmarkCache()
@@ -1037,6 +1271,117 @@
     }
     const tok = `${row.expectedTokSec || ''}`.split('-')[0]?.replace(/[^0-9.]/g, '')
     return Number(tok || 0)
+  }
+
+  const quantFactor = (q: string) => {
+    const text = `${q || ''}`.toUpperCase()
+    if (text.includes('Q8')) return 1
+    if (text.includes('Q6')) return 0.8
+    if (text.includes('Q5')) return 0.7
+    if (text.includes('Q4')) return 0.55
+    if (text.includes('Q3')) return 0.45
+    return 0.65
+  }
+
+  const extractModelSizeB = (modelName: string) => {
+    const m = `${modelName || ''}`.match(/(\d+(?:\.\d+)?)\s*b/i)
+    return Number(m?.[1] || 7)
+  }
+
+  const estimateNeedVramGB = (modelName: string, quant: string) => {
+    const sizeB = extractModelSizeB(modelName)
+    const factor = quantFactor(quant)
+    // Rough sizing for GGUF-like memory footprint + runtime overhead.
+    return Math.round((sizeB * 1.15 * factor + 1.3) * 100) / 100
+  }
+
+  const evaluateFit = (row: any) => {
+    const bench = state.benchmarkRows.find((b) => b.model === row.modelName && b.ok)
+    if (bench) {
+      if (bench.tokPerSec >= 25 && bench.firstTokenSec <= 1.2) {
+        return {
+          level: 'Excellent' as const,
+          reason: `Benchmarked on your PC: ${bench.tokPerSec.toFixed(1)} tok/s, first token ${bench.firstTokenSec.toFixed(2)}s.`
+        }
+      }
+      if (bench.tokPerSec >= 10 && bench.firstTokenSec <= 2.5) {
+        return {
+          level: 'Medium' as const,
+          reason: `Benchmarked on your PC: usable speed (${bench.tokPerSec.toFixed(1)} tok/s, ${bench.firstTokenSec.toFixed(2)}s first token).`
+        }
+      }
+      return {
+        level: 'Low' as const,
+        reason: `Benchmarked on your PC: slow response (${bench.tokPerSec.toFixed(1)} tok/s, ${bench.firstTokenSec.toFixed(2)}s first token).`
+      }
+    }
+
+    const vram = maxGpuVramGB.value
+    const need = estimateNeedVramGB(row.modelName, row.quant)
+    const ratio = vram > 0 ? vram / need : 0
+    const isInstalled = !!row.available
+
+    const fromEstimate = (level: 'Excellent' | 'Medium' | 'Low', text: string) => {
+      if (isInstalled) {
+        return {
+          level,
+          reason: `${text} (estimated; model is installed, run top Benchmark for exact runtime numbers).`
+        }
+      }
+      if (level === 'Excellent') {
+        return {
+          level: 'Medium' as const,
+          reason: `${text} (not installed yet; downgraded one level until verified by real run).`
+        }
+      }
+      return {
+        level,
+        reason: `${text} (not installed yet; quick estimate based on your PC profile).`
+      }
+    }
+
+    if (ratio >= 1.35) {
+      return fromEstimate('Excellent', `Estimated VRAM fit is strong (${vram} GB GPU vs ~${need} GB needed).`)
+    }
+    if (ratio >= 1.0) {
+      return fromEstimate('Medium', `Estimated VRAM fit is acceptable (${vram} GB GPU vs ~${need} GB needed).`)
+    }
+    return fromEstimate(
+      'Low',
+      `Estimated memory pressure is high (${vram} GB GPU vs ~${need} GB needed), may be slow or fallback to CPU.`
+    )
+  }
+
+  const checkModelFit = async () => {
+    if (state.fitChecking) return
+    state.fitChecking = true
+    state.fitProgress = 0
+    state.fitDone = 0
+    state.fitTotal = 0
+    try {
+      const nextMap: Record<string, { level: 'Excellent' | 'Medium' | 'Low'; reason: string }> = {}
+      const allRows = allCategoryModelRows.value
+      const uniqueRows = allRows.filter(
+        (row, idx) => allRows.findIndex((r) => r.modelName === row.modelName) === idx
+      )
+      state.fitTotal = uniqueRows.length
+
+      for (const row of uniqueRows) {
+        nextMap[row.modelName] = evaluateFit(row)
+        state.fitDone += 1
+        state.fitProgress = state.fitTotal
+          ? Math.round((state.fitDone / state.fitTotal) * 100)
+          : 0
+        if (state.fitDone % 5 === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 0))
+        }
+      }
+      state.fitMap = nextMap
+      state.fitChecked = true
+    } finally {
+      state.fitProgress = state.fitTotal ? 100 : 0
+      state.fitChecking = false
+    }
   }
 
   const BENCH_KEY = 'flyenv-llm-checker-bench'
@@ -1260,8 +1605,13 @@
   }
 
   const fetchPcReport = async () => {
-    const res = await callOllama('pcReport')
-    state.pcReport = res?.data ?? {}
+    state.pcReportLoading = true
+    try {
+      const res = await callOllama('pcReport')
+      state.pcReport = res?.data ?? {}
+    } finally {
+      state.pcReportLoading = false
+    }
   }
 
   const refresh = async () => {
@@ -1300,7 +1650,59 @@
   })
 </script>
 
+<style lang="scss" scoped>
+  .compact-fit-table {
+    :deep(.el-table__cell) {
+      padding: 6px 6px;
+      font-size: 12px;
+    }
+
+    :deep(.cell) {
+      white-space: normal;
+      word-break: break-word;
+      line-height: 1.25;
+    }
+  }
+</style>
+
 <style scoped>
+  .pc-report-loading {
+    border: 1px dashed rgba(148, 163, 184, 0.35);
+    border-radius: 8px;
+    padding: 12px;
+    background: rgba(30, 41, 59, 0.18);
+  }
+
+  .pc-report-loading-title {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 10px;
+  }
+
+  .pc-report-skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .model-fit-skeleton-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  @media (min-width: 768px) {
+    .pc-report-skeleton-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 20px;
+    }
+
+    .model-fit-skeleton-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px 14px;
+    }
+  }
+
   .summary-row {
     display: flex;
     gap: 6px;
