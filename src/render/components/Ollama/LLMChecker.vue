@@ -84,6 +84,9 @@
           style="width: 280px"
           placeholder="Ollama URL"
         />
+        <span v-if="state.lastBenchmarkAt" class="text-xs text-gray-500">
+          Last benchmark: {{ state.lastBenchmarkAt }}
+        </span>
       </div>
 
       <el-table
@@ -189,6 +192,21 @@
         </el-table-column>
         <el-table-column prop="quant" label="Best Quant" width="110" />
         <el-table-column prop="context" label="Context" width="100" />
+        <el-table-column prop="confidence" label="Confidence" width="110">
+          <template #default="scope">
+            <el-tag
+              size="small"
+              :type="
+                scope.row.confidence === 'High'
+                  ? 'success'
+                  : scope.row.confidence === 'Medium'
+                    ? 'warning'
+                    : 'info'
+              "
+              >{{ scope.row.confidence }}</el-tag
+            >
+          </template>
+        </el-table-column>
         <el-table-column prop="expectedTokSec" label="Expected tok/s" width="130" />
         <el-table-column prop="firstToken" label="First Token" width="120" />
         <el-table-column label="Suggested Features" min-width="220">
@@ -232,6 +250,20 @@
           <div class="mb-2 text-xs">
             <span class="text-gray-500">Quant:</span>
             <span class="font-medium"> {{ row.quant }}</span>
+          </div>
+          <div class="mb-2 text-xs">
+            <span class="text-gray-500">Confidence:</span>
+            <el-tag
+              size="small"
+              :type="
+                row.confidence === 'High'
+                  ? 'success'
+                  : row.confidence === 'Medium'
+                    ? 'warning'
+                    : 'info'
+              "
+              >{{ row.confidence }}</el-tag
+            >
           </div>
 
           <div class="mb-2">
@@ -319,6 +351,7 @@
       elapsedSec: number
       error?: string
     }>
+    lastBenchmarkAt: string
     autoBest: string
     monitorAuto: boolean
     monitorLoading: boolean
@@ -343,6 +376,7 @@
     benchmarkRunning: false,
     benchmarkBaseUrl: 'http://127.0.0.1:11434',
     benchmarkRows: [],
+    lastBenchmarkAt: '',
     autoBest: '',
     monitorAuto: false,
     monitorLoading: false,
@@ -700,6 +734,16 @@
     })
   }
 
+  const confidenceScore = (modelName: string) => {
+    const hasBench = state.benchmarkRows.some((b) => b.model === modelName && b.ok)
+    const hasHw = !!state.pcReport?.cpu && !!state.pcReport?.memory
+    const hasGpu = toArr(state.pcReport?.gpu).length > 0
+
+    if (hasBench && hasHw && hasGpu) return 'High'
+    if ((hasBench && hasHw) || (hasHw && hasGpu)) return 'Medium'
+    return 'Low'
+  }
+
   const modelFamily = (name: string) => {
     let base = `${name || ''}`.toLowerCase().trim()
     if (base.includes('/')) {
@@ -753,10 +797,12 @@
     ]
     return rows.map((row) => {
       const fallback = row.suggested.length ? row.suggested : ['No catalog match']
+      const sampleModel = row.suggested?.[0] || ''
       return {
         category: row.category,
         suggested: fallback,
         available: row.suggested.filter((name) => hasLocalMatch(name)),
+        confidence: sampleModel && sampleModel !== 'No catalog match' ? confidenceScore(sampleModel) : 'Low',
         quant: row.quant,
         context: row.context,
         expectedTokSec: row.expectedTokSec,
@@ -793,6 +839,7 @@
             family: modelFamily(name),
             modelName: name,
             available: hasLocalMatch(name),
+            confidence: confidenceScore(name),
             quant: row.quant,
             context: row.context,
             expectedTokSec: row.expectedTokSec,
@@ -823,6 +870,13 @@
     }
   )
 
+  watch(
+    () => state.benchmarkBaseUrl,
+    () => {
+      saveBenchmarkCache()
+    }
+  )
+
   const modelScore = (row: any) => {
     const hasBench = state.benchmarkRows.find((b) => b.model === row.modelName && b.ok)
     if (hasBench) {
@@ -830,6 +884,38 @@
     }
     const tok = `${row.expectedTokSec || ''}`.split('-')[0]?.replace(/[^0-9.]/g, '')
     return Number(tok || 0)
+  }
+
+  const BENCH_KEY = 'flyenv-llm-checker-bench'
+
+  const loadBenchmarkCache = () => {
+    try {
+      const raw = localStorage.getItem(BENCH_KEY)
+      if (!raw) return
+      const json = JSON.parse(raw)
+      if (Array.isArray(json?.rows)) {
+        state.benchmarkRows = json.rows
+      }
+      if (json?.baseUrl) {
+        state.benchmarkBaseUrl = json.baseUrl
+      }
+      if (json?.lastBenchmarkAt) {
+        state.lastBenchmarkAt = json.lastBenchmarkAt
+      }
+    } catch {}
+  }
+
+  const saveBenchmarkCache = () => {
+    try {
+      localStorage.setItem(
+        BENCH_KEY,
+        JSON.stringify({
+          rows: state.benchmarkRows,
+          baseUrl: state.benchmarkBaseUrl,
+          lastBenchmarkAt: state.lastBenchmarkAt
+        })
+      )
+    } catch {}
   }
 
   const autoPickBest = () => {
@@ -861,6 +947,8 @@
           error: row?.error
         })
       }
+      state.lastBenchmarkAt = new Date().toLocaleString()
+      saveBenchmarkCache()
       autoPickBest()
     } finally {
       state.benchmarkRunning = false
@@ -953,8 +1041,10 @@
   )
 
   onMounted(() => {
+    loadBenchmarkCache()
     refresh().then().catch()
     refreshMonitor().then().catch()
+    autoPickBest()
   })
 
   onUnmounted(() => {
