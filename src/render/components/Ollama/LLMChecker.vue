@@ -1,8 +1,8 @@
 <template>
   <div class="llm-checker-wrap h-full overflow-auto p-4">
     <div class="flex items-center justify-between mb-3">
-      <div class="text-lg font-semibold">LLM Checker</div>
-      <el-button :loading="state.fetching" @click="refresh">Recheck</el-button>
+      <div class="text-lg font-semibold">{{ I18nT('ollama.llmChecker.title') }}</div>
+      <el-button :loading="state.fetching" @click="refresh">{{ I18nT('ollama.llmChecker.recheck') }}</el-button>
     </div>
 
     <el-alert
@@ -16,9 +16,9 @@
     <el-alert v-if="!ollamaServiceRunning" type="error" :closable="false" class="mb-3">
       <template #title>
         <span>
-          You should go to run Ollama.
+          {{ I18nT('ollama.llmChecker.serviceHint') }}
           <el-button link type="primary" @click="goToOllamaServiceTab">
-            Click here to go to Ollama tab
+            {{ I18nT('ollama.llmChecker.goToServiceTab') }}
           </el-button>
         </span>
       </template>
@@ -26,11 +26,11 @@
 
     <el-card class="mb-3" shadow="never">
       <template #header>
-        <div class="font-medium">PC Report Summary</div>
+        <div class="font-medium">{{ I18nT('ollama.llmChecker.pcReportSummary') }}</div>
       </template>
       <template v-if="state.pcReportLoading">
         <div class="pc-report-loading">
-          <div class="pc-report-loading-title">Fetching PC hardware details...</div>
+          <div class="pc-report-loading-title">{{ I18nT('ollama.llmChecker.fetchingPcDetails') }}</div>
           <div class="pc-report-skeleton-grid">
             <el-skeleton v-for="i in 8" :key="`pc-row-${i}`" animated>
               <template #template>
@@ -39,7 +39,7 @@
             </el-skeleton>
           </div>
           <el-divider class="!my-4" />
-          <div class="text-sm font-medium mb-2">Graphics Cards</div>
+          <div class="text-sm font-medium mb-2">{{ I18nT('ollama.llmChecker.graphicsCards') }}</div>
           <el-skeleton animated>
             <template #template>
               <el-skeleton-item variant="text" style="width: 75%; height: 14px" />
@@ -63,7 +63,7 @@
 
         <el-divider class="!my-4" />
 
-        <div class="text-sm font-medium mb-2">Graphics Cards</div>
+        <div class="text-sm font-medium mb-2">{{ I18nT('ollama.llmChecker.graphicsCards') }}</div>
         <el-tabs v-model="state.gpuTab" type="card" class="gpu-tabs">
           <el-tab-pane
             v-for="(item, idx) in gpuRows"
@@ -72,16 +72,16 @@
             :label="`GPU ${idx + 1}: ${item.cardName}`"
           >
             <el-table :data="[item]" :border="false" size="small" style="width: 100%">
-              <el-table-column prop="vendor" label="Card Name" min-width="140" />
-              <el-table-column prop="model" label="Model" min-width="180" />
-              <el-table-column prop="vram" label="RAM" width="140" />
-              <el-table-column prop="driverVersion" label="Driver" min-width="120" />
-              <el-table-column prop="resolution" label="Resolution" width="130" />
-              <el-table-column prop="processor" label="Video Processor" min-width="180" />
+              <el-table-column prop="vendor" :label="I18nT('ollama.llmChecker.cardName')" min-width="140" />
+              <el-table-column prop="model" :label="I18nT('base.model')" min-width="180" />
+              <el-table-column prop="vram" :label="I18nT('ollama.llmChecker.ram')" width="140" />
+              <el-table-column prop="driverVersion" :label="I18nT('ollama.llmChecker.driver')" min-width="120" />
+              <el-table-column prop="resolution" :label="I18nT('ollama.llmChecker.resolution')" width="130" />
+              <el-table-column prop="processor" :label="I18nT('ollama.llmChecker.videoProcessor')" min-width="180" />
             </el-table>
           </el-tab-pane>
-          <el-tab-pane v-if="!gpuRows.length" name="empty" label="GPU 1: Unknown">
-            <div class="text-xs text-gray-500 py-2">No graphics card information found.</div>
+          <el-tab-pane v-if="!gpuRows.length" name="empty" :label="I18nT('ollama.llmChecker.gpuUnknown')">
+            <div class="text-xs text-gray-500 py-2">{{ I18nT('ollama.llmChecker.noGraphicsInfo') }}</div>
           </el-tab-pane>
         </el-tabs>
       </template>
@@ -89,12 +89,12 @@
 
     <el-card shadow="never">
       <template #header>
-        <div class="font-medium">Model Fit & Suggestions</div>
+        <div class="font-medium">{{ I18nT('ollama.llmChecker.modelFitSuggestions') }}</div>
       </template>
 
       <template v-if="state.fetching">
         <div class="pc-report-loading">
-          <div class="pc-report-loading-title">Preparing model fit analysis...</div>
+          <div class="pc-report-loading-title">{{ I18nT('ollama.llmChecker.preparingModelFit') }}</div>
           <div class="model-fit-skeleton-grid mb-3">
             <el-skeleton v-for="i in 6" :key="`fit-row-${i}`" animated>
               <template #template>
@@ -116,30 +116,31 @@
       <template v-else>
 
       <div class="mb-3 text-xs text-gray-500">
-        Device performance profile: <b>{{ performanceTier.label }}</b> · GPU VRAM:
-        <b>{{ performanceTier.maxVramText }}</b> · System RAM: <b>{{ performanceTier.systemRamText }}</b>
+        {{ I18nT('ollama.llmChecker.devicePerformanceProfile') }}: <b>{{ performanceTier.label }}</b> ·
+        {{ I18nT('ollama.llmChecker.gpuVram') }}: <b>{{ performanceTier.maxVramText }}</b> ·
+        {{ I18nT('ollama.llmChecker.systemRam') }}: <b>{{ performanceTier.systemRamText }}</b>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
         <el-card shadow="never">
           <template #header>
-            <div class="font-medium text-sm">Auto Quant Recommender</div>
+            <div class="font-medium text-sm">{{ I18nT('ollama.llmChecker.autoQuantRecommender') }}</div>
           </template>
           <div class="text-xs">
-            <div>Recommended Quant: <b>{{ quantRecommendation.quant }}</b></div>
+            <div>{{ I18nT('ollama.llmChecker.recommendedQuant') }}: <b>{{ quantRecommendation.quant }}</b></div>
             <div class="text-gray-500 mt-1">{{ quantRecommendation.reason }}</div>
           </div>
         </el-card>
 
         <el-card shadow="never" class="md:col-span-2">
           <template #header>
-            <div class="font-medium text-sm">Context Window Safety</div>
+            <div class="font-medium text-sm">{{ I18nT('ollama.llmChecker.contextWindowSafety') }}</div>
           </template>
           <el-table :data="contextSafetyRows" :border="false" size="small">
-            <el-table-column prop="modelClass" label="Model Class" width="120" />
-            <el-table-column prop="safeContext" label="Safe Context" width="130" />
-            <el-table-column prop="riskyContext" label="Risky" width="120" />
-            <el-table-column prop="note" label="Note" min-width="180" />
+            <el-table-column prop="modelClass" :label="I18nT('ollama.llmChecker.modelClass')" width="120" />
+            <el-table-column prop="safeContext" :label="I18nT('ollama.llmChecker.safeContext')" width="130" />
+            <el-table-column prop="riskyContext" :label="I18nT('ollama.llmChecker.risky')" width="120" />
+            <el-table-column prop="note" :label="I18nT('ollama.llmChecker.note')" min-width="180" />
           </el-table>
         </el-card>
       </div>
@@ -147,36 +148,36 @@
       <el-card shadow="never" class="mb-3">
         <template #header>
           <div class="flex items-center justify-between">
-            <span class="font-medium text-sm">Model Quality Score</span>
+            <span class="font-medium text-sm">{{ I18nT('ollama.llmChecker.modelQualityScore') }}</span>
             <el-button size="small" :loading="state.qualityRunning" @click="runQualityCheck">
-              Run Quality Check
+              {{ I18nT('ollama.llmChecker.runQualityCheck') }}
             </el-button>
           </div>
         </template>
         <el-table v-if="state.qualityRows.length" :data="state.qualityRows" :border="false" size="small">
-          <el-table-column prop="model" label="Model" min-width="220" />
-          <el-table-column prop="coding" label="Coding" width="90" />
-          <el-table-column prop="documents" label="Documents" width="100" />
-          <el-table-column prop="chat" label="Chat" width="80" />
-          <el-table-column prop="vision" label="Vision" width="80" />
-          <el-table-column prop="total" label="Total" width="90" />
+          <el-table-column prop="model" :label="I18nT('ollama.llmChecker.modelLabel')" min-width="220" />
+          <el-table-column prop="coding" :label="I18nT('ollama.llmChecker.coding')" width="90" />
+          <el-table-column prop="documents" :label="I18nT('ollama.llmChecker.documents')" width="100" />
+          <el-table-column prop="chat" :label="I18nT('ollama.llmChecker.chat')" width="80" />
+          <el-table-column prop="vision" :label="I18nT('ollama.llmChecker.vision')" width="80" />
+          <el-table-column prop="total" :label="I18nT('ollama.llmChecker.total')" width="90" />
         </el-table>
-        <div v-else class="text-xs text-gray-500">Run quality check to measure practical model quality on this PC.</div>
+        <div v-else class="text-xs text-gray-500">{{ I18nT('ollama.llmChecker.runQualityHint') }}</div>
       </el-card>
 
       <div class="mb-3 flex flex-wrap gap-2 items-center">
         <el-button size="small" :loading="state.benchmarkRunning" @click="runBenchmark">
-          Benchmark Local Models
+          {{ I18nT('ollama.llmChecker.benchmarkLocalModels') }}
         </el-button>
-        <el-button size="small" @click="autoPickBest">Auto Pick Best</el-button>
+        <el-button size="small" @click="autoPickBest">{{ I18nT('ollama.llmChecker.autoPickBest') }}</el-button>
         <el-input
           v-model="state.benchmarkBaseUrl"
           size="small"
           style="width: 280px"
-          placeholder="Ollama URL"
+          :placeholder="I18nT('ollama.llmChecker.ollamaUrlPlaceholder')"
         />
         <span v-if="state.lastBenchmarkAt" class="text-xs text-gray-500">
-          Last benchmark: {{ state.lastBenchmarkAt }}
+          {{ I18nT('ollama.llmChecker.lastBenchmark') }}: {{ state.lastBenchmarkAt }}
         </span>
       </div>
 
@@ -187,14 +188,14 @@
         size="small"
         class="mb-3"
       >
-        <el-table-column prop="model" label="Model" min-width="220" />
-        <el-table-column prop="tokPerSec" label="Real tok/s" width="120" />
-        <el-table-column prop="firstTokenSec" label="First token (s)" width="130" />
-        <el-table-column prop="elapsedSec" label="Elapsed (s)" width="110" />
-        <el-table-column label="Status" width="110">
+        <el-table-column prop="model" :label="I18nT('ollama.llmChecker.modelLabel')" min-width="220" />
+        <el-table-column prop="tokPerSec" :label="I18nT('ollama.llmChecker.realTokPerSec')" width="120" />
+        <el-table-column prop="firstTokenSec" :label="I18nT('ollama.llmChecker.firstTokenSec')" width="130" />
+        <el-table-column prop="elapsedSec" :label="I18nT('ollama.llmChecker.elapsedSec')" width="110" />
+        <el-table-column :label="I18nT('ollama.llmChecker.status')" width="110">
           <template #default="scope">
-            <el-tag v-if="scope.row.ok" type="success" size="small">OK</el-tag>
-            <el-tag v-else type="danger" size="small">Fail</el-tag>
+            <el-tag v-if="scope.row.ok" type="success" size="small">{{ I18nT('ollama.llmChecker.ok') }}</el-tag>
+            <el-tag v-else type="danger" size="small">{{ I18nT('ollama.llmChecker.fail') }}</el-tag>
           </template>
         </el-table-column>
       </el-table>
@@ -202,31 +203,31 @@
       <el-card shadow="never" class="mb-3">
         <template #header>
           <div class="flex items-center justify-between">
-            <span>Live Resource Monitor</span>
+            <span>{{ I18nT('ollama.llmChecker.liveResourceMonitor') }}</span>
             <div class="flex items-center gap-2">
               <el-switch v-model="state.monitorAuto" />
               <el-button size="small" :loading="state.monitorLoading" @click="refreshMonitor"
-                >Refresh</el-button
+                >{{ I18nT('ollama.llmChecker.refresh') }}</el-button
               >
             </div>
           </div>
         </template>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
-          <div>CPU: <b>{{ state.monitor.cpu }}%</b></div>
-          <div>RAM Used: <b>{{ state.monitor.ramUsedGB }} GB</b></div>
-          <div>RAM Free: <b>{{ state.monitor.ramFreeGB }} GB</b></div>
-          <div>GPU Util: <b>{{ state.monitor.gpuUtil }}</b></div>
-          <div>GPU Mem: <b>{{ state.monitor.gpuMem }}</b></div>
-          <div>GPU Temp: <b>{{ state.monitor.gpuTemp }}</b></div>
+          <div>{{ I18nT('ollama.llmChecker.cpu') }}: <b>{{ state.monitor.cpu }}%</b></div>
+          <div>{{ I18nT('ollama.llmChecker.ramUsed') }}: <b>{{ state.monitor.ramUsedGB }} GB</b></div>
+          <div>{{ I18nT('ollama.llmChecker.ramFree') }}: <b>{{ state.monitor.ramFreeGB }} GB</b></div>
+          <div>{{ I18nT('ollama.llmChecker.gpuUtil') }}: <b>{{ state.monitor.gpuUtil }}</b></div>
+          <div>{{ I18nT('ollama.llmChecker.gpuMem') }}: <b>{{ state.monitor.gpuMem }}</b></div>
+          <div>{{ I18nT('ollama.llmChecker.gpuTemp') }}: <b>{{ state.monitor.gpuTemp }}</b></div>
         </div>
         <div v-if="state.autoBest" class="mt-2 text-xs text-gray-500">
-          Auto best model for current filters: <b>{{ state.autoBest }}</b>
+          {{ I18nT('ollama.llmChecker.autoBestModel') }}: <b>{{ state.autoBest }}</b>
         </div>
       </el-card>
 
       <div class="mb-3 flex flex-wrap gap-3 items-center">
         <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-500">Category</span>
+          <span class="text-xs text-gray-500">{{ I18nT('ollama.llmChecker.category') }}</span>
           <el-select v-model="state.modelCategory" style="width: 220px" size="small">
             <el-option
               v-for="item in categoryOptions"
@@ -237,36 +238,36 @@
           </el-select>
         </div>
         <div class="flex items-center gap-2">
-          <span class="text-xs text-gray-500">Display</span>
+          <span class="text-xs text-gray-500">{{ I18nT('ollama.llmChecker.display') }}</span>
           <el-radio-group v-model="state.modelDisplay" size="small">
-            <el-radio-button value="table">Table</el-radio-button>
-            <el-radio-button value="cards">Cards</el-radio-button>
+            <el-radio-button value="table">{{ I18nT('ollama.llmChecker.table') }}</el-radio-button>
+            <el-radio-button value="cards">{{ I18nT('ollama.llmChecker.cards') }}</el-radio-button>
           </el-radio-group>
         </div>
         <el-button size="small" type="primary" :loading="state.fitChecking" @click="checkModelFit">
-          Quick PC Benchmark
+          {{ I18nT('ollama.llmChecker.quickPcBenchmark') }}
         </el-button>
       </div>
 
       <div class="mb-3" v-if="state.fitChecking || state.fitChecked">
         <div class="flex items-center justify-between text-xs text-gray-500 mb-1">
-          <span>Quick benchmark progress</span>
+          <span>{{ I18nT('ollama.llmChecker.quickBenchmarkProgress') }}</span>
           <span>{{ state.fitDone }}/{{ state.fitTotal }} ({{ state.fitProgress }}%)</span>
         </div>
         <el-progress :percentage="state.fitProgress" :stroke-width="8" />
         <div class="text-xs text-gray-500 mt-1">
-          This quick benchmark is different from the top benchmark: it uses PC hardware fit analysis for local and non-local suggested models, and reuses cached real benchmark data when available.
+          {{ I18nT('ollama.llmChecker.quickBenchmarkHelp') }}
         </div>
       </div>
 
       <div v-if="showFamilyFilters" class="mb-3 flex flex-wrap gap-2 items-center">
-        <span class="text-xs text-gray-500">Models Family</span>
+        <span class="text-xs text-gray-500">{{ I18nT('ollama.llmChecker.modelsFamily') }}</span>
         <el-button
           size="small"
           :type="state.modelFamily === 'all' ? 'primary' : 'default'"
           @click="state.modelFamily = 'all'"
         >
-          All
+          {{ I18nT('ollama.llmChecker.all') }}
         </el-button>
         <el-button
           v-for="family in familyOptions"
@@ -288,11 +289,11 @@
         class="compact-fit-table"
       >
         <template #empty>
-          <span class="text-xs text-gray-500">Table is empty. Click "Quick PC Benchmark" to run compatibility analysis for your PC.</span>
+          <span class="text-xs text-gray-500">{{ I18nT('ollama.llmChecker.tableEmptyHint') }}</span>
         </template>
-        <el-table-column prop="category" label="Category" width="120" />
-        <el-table-column prop="family" label="Models Family" width="110" />
-        <el-table-column prop="modelName" label="Model" min-width="180">
+        <el-table-column prop="category" :label="I18nT('ollama.llmChecker.category')" width="120" />
+        <el-table-column prop="family" :label="I18nT('ollama.llmChecker.modelsFamily')" width="110" />
+        <el-table-column prop="modelName" :label="I18nT('ollama.llmChecker.modelLabel')" min-width="180">
           <template #default="scope">
             <el-button
               link
@@ -304,15 +305,15 @@
             </el-button>
           </template>
         </el-table-column>
-        <el-table-column align="center" label="Available" width="90">
+        <el-table-column align="center" :label="I18nT('ollama.llmChecker.available')" width="90">
           <template #default="scope">
-            <el-tag v-if="scope.row.available" type="success" size="small">Installed</el-tag>
-            <span v-else class="text-xs text-gray-500">No</span>
+            <el-tag v-if="scope.row.available" type="success" size="small">{{ I18nT('ollama.llmChecker.installed') }}</el-tag>
+            <span v-else class="text-xs text-gray-500">{{ I18nT('ollama.llmChecker.no') }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="quant" label="Quant" width="90" />
-        <el-table-column prop="context" label="Context" width="90" />
-        <el-table-column prop="confidence" label="Conf" width="85">
+        <el-table-column prop="quant" :label="I18nT('ollama.llmChecker.quant')" width="90" />
+        <el-table-column prop="context" :label="I18nT('ollama.llmChecker.context')" width="90" />
+        <el-table-column prop="confidence" :label="I18nT('ollama.llmChecker.confidenceShort')" width="85">
           <template #default="scope">
             <el-tag
               size="small"
@@ -327,9 +328,9 @@
             >
           </template>
         </el-table-column>
-        <el-table-column prop="expectedTokSec" label="tok/s" width="90" />
-        <el-table-column prop="firstToken" label="1st Token" width="95" />
-        <el-table-column prop="fitLevel" label="Fit" width="85">
+        <el-table-column prop="expectedTokSec" :label="I18nT('ollama.llmChecker.tokPerSecShort')" width="90" />
+        <el-table-column prop="firstToken" :label="I18nT('ollama.llmChecker.firstTokenShort')" width="95" />
+        <el-table-column prop="fitLevel" :label="I18nT('ollama.llmChecker.fit')" width="85">
           <template #default="scope">
             <el-tag
               size="small"
@@ -345,8 +346,8 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="fitReason" label="Explanation" min-width="170" />
-        <el-table-column label="Features" min-width="140">
+        <el-table-column prop="fitReason" :label="I18nT('ollama.llmChecker.explanation')" min-width="170" />
+        <el-table-column :label="I18nT('ollama.llmChecker.features')" min-width="140">
           <template #default="scope">
             <div class="flex flex-wrap gap-1.5">
               <el-tag
@@ -377,19 +378,19 @@
           </template>
 
           <div class="mb-2 text-xs">
-            <span class="text-gray-500">Expected tok/s:</span>
+            <span class="text-gray-500">{{ I18nT('ollama.llmChecker.expectedTokPerSec') }}:</span>
             <span class="font-medium"> {{ row.expectedTokSec }}</span>
           </div>
           <div class="mb-2 text-xs">
-            <span class="text-gray-500">First token:</span>
+            <span class="text-gray-500">{{ I18nT('ollama.llmChecker.firstToken') }}:</span>
             <span class="font-medium"> {{ row.firstToken }}</span>
           </div>
           <div class="mb-2 text-xs">
-            <span class="text-gray-500">Quant:</span>
+            <span class="text-gray-500">{{ I18nT('ollama.llmChecker.quant') }}:</span>
             <span class="font-medium"> {{ row.quant }}</span>
           </div>
           <div class="mb-2 text-xs">
-            <span class="text-gray-500">Confidence:</span>
+            <span class="text-gray-500">{{ I18nT('ollama.llmChecker.confidence') }}:</span>
             <el-tag
               size="small"
               :type="
@@ -404,7 +405,7 @@
           </div>
 
           <div class="mb-2">
-            <div class="text-xs text-gray-500 mb-1">Suggested Models</div>
+            <div class="text-xs text-gray-500 mb-1">{{ I18nT('ollama.llmChecker.suggestedModels') }}</div>
             <div class="flex flex-wrap gap-1.5">
               <el-tag
                 v-for="name in row.suggested"
@@ -419,7 +420,7 @@
           </div>
 
           <div class="mb-2">
-            <div class="text-xs text-gray-500 mb-1">Available On This PC</div>
+            <div class="text-xs text-gray-500 mb-1">{{ I18nT('ollama.llmChecker.availableOnPc') }}</div>
             <div class="flex flex-wrap gap-1.5">
               <template v-if="row.available.length">
                 <el-tag
@@ -432,13 +433,13 @@
                 </el-tag>
               </template>
               <template v-else>
-                <span class="text-xs text-gray-500">No local match</span>
+                <span class="text-xs text-gray-500">{{ I18nT('ollama.llmChecker.noLocalMatch') }}</span>
               </template>
             </div>
           </div>
 
           <div>
-            <div class="text-xs text-gray-500 mb-1">Suggested Features</div>
+            <div class="text-xs text-gray-500 mb-1">{{ I18nT('ollama.llmChecker.suggestedFeatures') }}</div>
             <div class="flex flex-wrap gap-1.5">
               <el-tag
                 v-for="feat in row.features"
@@ -460,6 +461,7 @@
 
 <script lang="ts" setup>
   import { computed, onMounted, onUnmounted, reactive, watch } from 'vue'
+  import { I18nT } from '@lang/index'
   import IPC from '@/util/IPC'
   import { BrewStore } from '@/store/brew'
   import { AppStore } from '@/store/app'
@@ -1071,7 +1073,7 @@
     const tier = performanceTier.value
     const rows = [
       {
-        category: 'Coding',
+        category: I18nT('ollama.llmChecker.categoryCoding'),
         suggested: pickByKeywords(['coder', 'code', 'codellama', 'deepseek-coder', 'starcoder']),
         features: ['Fill-in-middle', 'Long context', 'Tool call'],
         context: tier.context,
@@ -1080,7 +1082,7 @@
         firstToken: tier.firstToken
       },
       {
-        category: 'Documents/RAG',
+        category: I18nT('ollama.llmChecker.categoryDocuments'),
         suggested: pickByKeywords(['embed', 'bge', 'nomic-embed', 'mxbai', 'e5', 'minilm']),
         features: ['Embeddings', 'Rerank', 'Citation style'],
         context: tier.key === 'low' ? '4K - 8K' : '8K - 32K',
@@ -1089,7 +1091,7 @@
         firstToken: 'N/A'
       },
       {
-        category: 'General Chat',
+        category: I18nT('ollama.llmChecker.categoryGeneralChat'),
         suggested: pickByKeywords(['llama', 'qwen', 'gemma', 'mistral', 'phi']),
         features: ['Reasoning', 'JSON mode', 'Multilingual'],
         context: tier.context,
@@ -1098,7 +1100,7 @@
         firstToken: tier.firstToken
       },
       {
-        category: 'Vision',
+        category: I18nT('ollama.llmChecker.categoryVision'),
         suggested: pickByKeywords(['vision', 'llava', 'moondream', 'bakllava', 'vl']),
         features: ['Image input', 'OCR', 'Chart QA'],
         context: tier.key === 'low' ? '4K - 8K' : '8K - 16K',
@@ -1125,7 +1127,7 @@
   })
 
   const categoryOptions = computed(() => {
-    const base = [{ label: 'All Categories', value: 'all' }]
+    const base = [{ label: I18nT('ollama.llmChecker.allCategories'), value: 'all' }]
     const items = categoryRows.value.map((row) => ({
       label: row.category,
       value: row.category
@@ -1212,7 +1214,7 @@
     return filteredModelRows.value.map((row) => {
       const fit = state.fitMap[row.modelName] || {
         level: 'Low' as const,
-        reason: 'No benchmark evidence for this model yet on this machine.'
+        reason: I18nT('ollama.llmChecker.fitNoEvidence')
       }
       return {
         ...row,
@@ -1301,18 +1303,27 @@
       if (bench.tokPerSec >= 25 && bench.firstTokenSec <= 1.2) {
         return {
           level: 'Excellent' as const,
-          reason: `Benchmarked on your PC: ${bench.tokPerSec.toFixed(1)} tok/s, first token ${bench.firstTokenSec.toFixed(2)}s.`
+          reason: I18nT('ollama.llmChecker.fitBenchExcellent', {
+            tok: bench.tokPerSec.toFixed(1),
+            first: bench.firstTokenSec.toFixed(2)
+          })
         }
       }
       if (bench.tokPerSec >= 10 && bench.firstTokenSec <= 2.5) {
         return {
           level: 'Medium' as const,
-          reason: `Benchmarked on your PC: usable speed (${bench.tokPerSec.toFixed(1)} tok/s, ${bench.firstTokenSec.toFixed(2)}s first token).`
+          reason: I18nT('ollama.llmChecker.fitBenchMedium', {
+            tok: bench.tokPerSec.toFixed(1),
+            first: bench.firstTokenSec.toFixed(2)
+          })
         }
       }
       return {
         level: 'Low' as const,
-        reason: `Benchmarked on your PC: slow response (${bench.tokPerSec.toFixed(1)} tok/s, ${bench.firstTokenSec.toFixed(2)}s first token).`
+        reason: I18nT('ollama.llmChecker.fitBenchLow', {
+          tok: bench.tokPerSec.toFixed(1),
+          first: bench.firstTokenSec.toFixed(2)
+        })
       }
     }
 
@@ -1325,30 +1336,36 @@
       if (isInstalled) {
         return {
           level,
-          reason: `${text} (estimated; model is installed, run top Benchmark for exact runtime numbers).`
+          reason: `${text} ${I18nT('ollama.llmChecker.fitInstalledSuffix')}`
         }
       }
       if (level === 'Excellent') {
         return {
           level: 'Medium' as const,
-          reason: `${text} (not installed yet; downgraded one level until verified by real run).`
+          reason: `${text} ${I18nT('ollama.llmChecker.fitNotInstalledDowngrade')}`
         }
       }
       return {
         level,
-        reason: `${text} (not installed yet; quick estimate based on your PC profile).`
+        reason: `${text} ${I18nT('ollama.llmChecker.fitNotInstalledEstimate')}`
       }
     }
 
     if (ratio >= 1.35) {
-      return fromEstimate('Excellent', `Estimated VRAM fit is strong (${vram} GB GPU vs ~${need} GB needed).`)
+      return fromEstimate(
+        'Excellent',
+        I18nT('ollama.llmChecker.fitEstimatedStrong', { vram, need })
+      )
     }
     if (ratio >= 1.0) {
-      return fromEstimate('Medium', `Estimated VRAM fit is acceptable (${vram} GB GPU vs ~${need} GB needed).`)
+      return fromEstimate(
+        'Medium',
+        I18nT('ollama.llmChecker.fitEstimatedAcceptable', { vram, need })
+      )
     }
     return fromEstimate(
       'Low',
-      `Estimated memory pressure is high (${vram} GB GPU vs ~${need} GB needed), may be slow or fallback to CPU.`
+      I18nT('ollama.llmChecker.fitEstimatedHighPressure', { vram, need })
     )
   }
 
@@ -1620,7 +1637,7 @@
     try {
       await Promise.all([fetchLocalModels(), fetchCatalog(), fetchPcReport()])
     } catch (e: any) {
-      state.error = e?.message || 'Failed to load checker data.'
+      state.error = e?.message || I18nT('ollama.llmChecker.loadingCheckerFailed')
     } finally {
       state.fetching = false
     }
